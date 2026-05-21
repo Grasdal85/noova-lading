@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart lading av flåten — Noova</title>
+<meta name="description" content="Se hvor mye bedriften kan spare på å lade smart. Justér flåte, ladevindu og tariffer.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'GT Era Text', 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    background: #FAFAFA;
+    color: #1A1A1A;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px 48px;
+  }
+  .wrap {
+    background: #FFFFFF;
+    border: 1px solid #F0F0F0;
+    border-radius: 16px;
+    padding: 32px;
+  }
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 0 0 28px; padding-bottom: 20px;
+    border-bottom: 1px solid #F0F0F0;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .n {
+    width: 32px; height: 32px;
+    background: #1A1A1A; color: #FDF5AC;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 20px; border-radius: 6px;
+  }
+  .title { font-size: 20px; font-weight: 500; margin: 0; }
+  .tag { font-size: 13px; color: #6B6B6B; margin: 2px 0 0; font-style: italic; }
+  .card {
+    background: #FAFAFA;
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .card-yellow {
+    background: #FDF5AC;
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .label {
+    font-size: 12px; color: #6B6B6B; margin: 0 0 10px;
+  }
+  .stat { font-size: 24px; font-weight: 500; margin: 0; color: #1A1A1A; }
+  .substat { font-size: 12px; color: #6B6B6B; margin: 3px 0 0; }
+  .row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .row label {
+    font-size: 13px; color: #1A1A1A; min-width: 96px;
+  }
+  .row input[type="range"] {
+    flex: 1; accent-color: #1A1A1A;
+  }
+  .row > span {
+    font-size: 13px; font-weight: 500; min-width: 54px; text-align: right;
+  }
+  .vehicle-row {
+    background: #FFFFFF;
+    border: 1px solid #E8E8E8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1.5fr 0.6fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .vehicle-row input {
+    font-size: 13px;
+    padding: 7px 9px;
+    height: 34px;
+    border: 1px solid #E8E8E8;
+    border-radius: 6px;
+    background: #FFFFFF;
+    color: #1A1A1A;
+    font-family: inherit;
+    width: 100%;
+  }
+  .vehicle-row input:focus { outline: none; border-color: #1A1A1A; }
+  .input-group { display: flex; align-items: center; gap: 6px; }
+  .unit { font-size: 11px; color: #6B6B6B; white-space: nowrap; }
+  .btn {
+    background: #1A1A1A; color: #FDF5AC;
+    border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+  }
+  .btn:hover { background: #333; }
+  .btn-secondary {
+    background: #FFFFFF; color: #1A1A1A;
+    border: 1px solid #E8E8E8;
+    border-radius: 6px;
+    padding: 8px 14px; font-size: 13px;
+    font-family: inherit; cursor: pointer;
+  }
+  .btn-secondary:hover { background: #FAFAFA; }
+  .btn-fjern {
+    background: transparent; color: #6B6B6B;
+    border: none; padding: 4px 8px; font-size: 18px; line-height: 1;
+    cursor: pointer; border-radius: 4px;
+  }
+  .btn-fjern:hover { background: #F0F0F0; color: #1A1A1A; }
+  .select {
+    font-size: 13px; padding: 8px 10px;
+    border: 1px solid #E8E8E8; border-radius: 6px;
+    background: #FFFFFF; color: #1A1A1A;
+    font-family: inherit;
+    flex: 1; min-width: 220px;
+  }
+  .section-title { font-size: 15px; font-weight: 500; margin: 0; }
+  .hint { font-size: 12px; color: #6B6B6B; margin: 0; }
+  .divider {
+    margin: 32px 0 22px;
+    border-top: 1px solid #F0F0F0;
+    padding-top: 24px;
+  }
+  .footnote {
+    font-size: 11px; color: #6B6B6B; line-height: 1.6;
+    margin-top: 22px; padding-top: 18px;
+    border-top: 1px solid #F0F0F0;
+  }
+
+  /* CTA / kontaktskjema */
+  .cta-block {
+    margin-top: 32px;
+    background: #FDF5AC;
+    border-radius: 16px;
+    padding: 32px;
+  }
+  .cta-title {
+    font-size: 24px; font-weight: 500;
+    margin: 0 0 8px;
+  }
+  .cta-sub {
+    font-size: 15px; color: #4A4400;
+    margin: 0 0 20px; line-height: 1.5;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .form-grid input, .form-grid textarea {
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid #E8D560;
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: #1A1A1A;
+    font-family: inherit;
+    width: 100%;
+  }
+  .form-grid input:focus, .form-full textarea:focus {
+    outline: none; border-color: #1A1A1A;
+  }
+  .form-full { margin-bottom: 16px; }
+  .form-full textarea {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid #E8D560;
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: #1A1A1A;
+    font-family: inherit;
+    min-height: 80px;
+    resize: vertical;
+  }
+  .privacy-note {
+    font-size: 12px; color: #4A4400;
+    margin: 14px 0 0;
+  }
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: #6B6B6B;
+  }
+  .footer a { color: #1A1A1A; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 760px) {
+    .page { padding: 16px 12px 32px; }
+    .wrap { padding: 20px; }
+    .header > .logo { width: 100%; }
+    .top-grid { grid-template-columns: 1fr !important; }
+    .result-grid { grid-template-columns: 1fr !important; }
+    .vehicle-row {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .vehicle-row > *:first-child { grid-column: 1 / -1; }
+    .vehicle-row > *:last-child { grid-column: 1 / -1; justify-self: end; }
+    .form-grid { grid-template-columns: 1fr; }
+    .cta-block { padding: 22px; }
+    .cta-title { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<div class="wrap">
+
+<div class="header">
+<div class="logo">
+<div class="n">N</div>
+<div>
+<p class="title">Smart lading av flåten</p>
+<p class="tag">Ikke bruk unødvendig energi</p>
+</div>
+</div>
+</div>
+
+<div class="top-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px;">
+
+<div class="card">
+<p class="label">Ladevindu</p>
+<div class="row">
+<label>Start</label>
+<input type="range" min="14" max="23" value="20" step="1" id="start" />
+<span id="start-out">20:00</span>
+</div>
+<div class="row">
+<label>Slutt</label>
+<input type="range" min="3" max="10" value="6" step="1" id="slutt" />
+<span id="slutt-out">06:00</span>
+</div>
+<p class="hint" id="vindu-out">10 timer å lade på</p>
+</div>
+
+<div class="card">
+<p class="label">Strøm og nettleie</p>
+<div class="row">
+<label>Vinter kr/kW</label>
+<input type="range" min="20" max="200" value="100" step="5" id="effekt-vinter" />
+<span id="effekt-vinter-out">100</span>
+</div>
+<div class="row">
+<label>Sommer kr/kW</label>
+<input type="range" min="10" max="150" value="50" step="5" id="effekt-sommer" />
+<span id="effekt-sommer-out">50</span>
+</div>
+<div class="row">
+<label>Spot øre/kWh</label>
+<input type="range" min="20" max="200" value="80" step="5" id="spot" />
+<span id="spot-out">80</span>
+</div>
+</div>
+
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; flex-wrap: wrap; gap: 8px;">
+<p class="section-title">Kjøretøyene dine</p>
+<p class="hint">Lading antar 60% påfyll per natt</p>
+</div>
+
+<div id="koeretoy-liste" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;"></div>
+
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<select id="preset-velg" class="select">
+<option value="">Velg fra bibliotek...</option>
+</select>
+<button id="legg-til-tom" class="btn-secondary">Tom rad</button>
+</div>
+
+<div class="divider">
+<p class="section-title" style="margin-bottom: 16px;">Slik ser det ut</p>
+
+<div class="result-grid" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 14px; align-items: stretch;">
+
+<div style="display: flex; flex-direction: column; gap: 10px;">
+
+<div class="card">
+<p class="label">Uten styring</p>
+<p class="stat" id="dum-peak">— kW</p>
+<p class="substat" id="dum-kost">— kr/natt</p>
+</div>
+
+<div class="card">
+<p class="label">Med smart lading</p>
+<p class="stat" id="smart-peak">— kW</p>
+<p class="substat" id="smart-kost">— kr/natt</p>
+</div>
+
+<div class="card-yellow">
+<p class="label" style="color: #4A4400;">Du sparer<sup style="font-size: 9px;">*</sup></p>
+<p class="stat" id="besparelse">— kr/år</p>
+<p class="substat" id="besparelse-detalj" style="color: #4A4400;">—</p>
+</div>
+
+</div>
+
+<div class="card" style="display: flex; flex-direction: column;">
+<p class="label">Effektuttak gjennom natten (kW)</p>
+<div style="flex: 1; position: relative; min-height: 260px;">
+<canvas id="chart"></canvas>
+</div>
+</div>
+
+</div>
+
+<div class="card" style="margin-top: 14px;">
+<p class="label">Fordelt på året</p>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+<div>
+<p class="hint" style="margin-bottom: 2px;">Vinter (okt–mar)</p>
+<p style="font-size: 17px; font-weight: 500; margin: 0;" id="vinter-besp">— kr</p>
+</div>
+<div>
+<p class="hint" style="margin-bottom: 2px;">Sommer (apr–sep)</p>
+<p style="font-size: 17px; font-weight: 500; margin: 0;" id="sommer-besp">— kr</p>
+</div>
+</div>
+</div>
+
+</div>
+
+<p class="footnote">
+<sup>*</sup> Du sparer på effektleddet bare hvis du holder samme tak resten av måneden. Én time med høyere uttak — dagdrift, hurtiglading, eller flere maskiner som starter samtidig — setter ny månedsmaks og spiser av gevinsten. Spotgevinst antar 15% lavere snittpris ved å flytte til billigere timer. Tall for kW og kWh er nettokapasitet, og lading skjer typisk mellom 40% og 100%.
+</p>
+
+</div>
+
+<!-- CTA / kontaktskjema -->
+<div class="cta-block">
+<p class="cta-title">Vil du vite hva dere kan spare?</p>
+<p class="cta-sub">Tallene over er en pekepinn. Send oss noen opplysninger så regner vi på det reelle besparelsespotensialet for flåten deres — gratis og uforpliktende.</p>
+
+<form id="kontakt-skjema" onsubmit="return sendKontakt(event)">
+<div class="form-grid">
+<input type="text" name="navn" placeholder="Navn" required />
+<input type="text" name="bedrift" placeholder="Bedrift" required />
+<input type="email" name="epost" placeholder="E-post" required />
+<input type="tel" name="telefon" placeholder="Telefon (valgfritt)" />
+</div>
+<div class="form-full">
+<textarea name="kommentar" placeholder="Kort om flåten deres — antall biler, type, hvor lader dere i dag? (valgfritt)"></textarea>
+</div>
+<button type="submit" class="btn">Be om analyse</button>
+<p class="privacy-note">Vi tar kontakt innen én virkedag. Vi lagrer kun opplysningene du skriver inn, og bruker dem ikke til markedsføring.</p>
+</form>
+
+<div id="kontakt-takk" style="display: none; padding: 20px 0;">
+<p style="font-size: 18px; font-weight: 500; margin: 0 0 6px;">Takk!</p>
+<p style="font-size: 14px; color: #4A4400; margin: 0;">Vi tar kontakt innen én virkedag.</p>
+</div>
+</div>
+
+<div class="footer">
+<p>
+Noova Energy Systems · Løkkeveien 107, 4007 Stavanger ·
+<a href="mailto:hei@noova.no">hei@noova.no</a> ·
+<a href="tel:+4751610170">+47 516 10 170</a>
+</p>
+</div>
+
+</div>
+
+<script>
+(function(){
+  const bibliotek = [
+    { gruppe: 'Varebiler', navn: 'Liten varebil (e-Caddy, ID. Buzz Cargo)', kapasitet: 50, kwh: 30, maxKw: 11 },
+    { gruppe: 'Varebiler', navn: 'Mellomstor varebil (Kia PV5, e-Transit Custom)', kapasitet: 71, kwh: 43, maxKw: 11 },
+    { gruppe: 'Varebiler', navn: 'Stor varebil (e-Transit, eSprinter, Master E-Tech)', kapasitet: 89, kwh: 53, maxKw: 22 },
+    { gruppe: 'Lastebiler', navn: 'Distribusjon (Volvo FL/FE Electric)', kapasitet: 265, kwh: 160, maxKw: 50 },
+    { gruppe: 'Lastebiler', navn: 'Regional lastebil (Volvo FH, Scania 45 R)', kapasitet: 450, kwh: 270, maxKw: 100 },
+    { gruppe: 'Lastebiler', navn: 'Langtransport (Scania MP12, Designwerk)', kapasitet: 624, kwh: 375, maxKw: 150 },
+    { gruppe: 'Lastebiler', navn: 'Tung langtransport (Asko/Litra 900–1000 kWh)', kapasitet: 900, kwh: 540, maxKw: 250 },
+    { gruppe: 'Anleggsmaskiner', navn: 'Mini-gravemaskin (Cat 301.9, CX25EV)', kapasitet: 32, kwh: 22, maxKw: 7 },
+    { gruppe: 'Anleggsmaskiner', navn: 'Kompakt hjullaster (Volvo L25 Electric)', kapasitet: 40, kwh: 28, maxKw: 11 },
+    { gruppe: 'Anleggsmaskiner', navn: 'Kompakt hjullaster stor (Cat 906, Volvo L25H)', kapasitet: 64, kwh: 45, maxKw: 22 },
+    { gruppe: 'Anleggsmaskiner', navn: 'Mellomstor gravemaskin (Cat 320, Volvo EC230 gen1)', kapasitet: 256, kwh: 180, maxKw: 50 },
+    { gruppe: 'Anleggsmaskiner', navn: 'Mellomstor hjullaster (Volvo L120 Electric)', kapasitet: 282, kwh: 200, maxKw: 50 },
+    { gruppe: 'Anleggsmaskiner', navn: 'Stor gravemaskin (Volvo EC230 gen2)', kapasitet: 450, kwh: 315, maxKw: 150 },
+    { gruppe: 'Personbiler', navn: 'Personbil firmaflåte (typisk 70 kWh)', kapasitet: 70, kwh: 42, maxKw: 11 }
+  ];
+
+  const presetSel = document.getElementById('preset-velg');
+  const grupper = [...new Set(bibliotek.map(b => b.gruppe))];
+  grupper.forEach(g => {
+    const og = document.createElement('optgroup');
+    og.label = g;
+    bibliotek.filter(b => b.gruppe === g).forEach(b => {
+      const idx = bibliotek.indexOf(b);
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = b.navn + ' — ' + b.kapasitet + ' kWh, ' + b.maxKw + ' kW lader';
+      og.appendChild(opt);
+    });
+    presetSel.appendChild(og);
+  });
+
+  const liste = document.getElementById('koeretoy-liste');
+  let nesteId = 0;
+  const koeretoy = [];
+
+  const startPresets = [
+    { navn: 'Mellomstor varebil', antall: 5, kwh: 43, maxKw: 11 },
+    { navn: 'Distribusjonslastebil', antall: 2, kwh: 160, maxKw: 50 },
+    { navn: 'Kompakt hjullaster', antall: 1, kwh: 28, maxKw: 11 }
+  ];
+
+  function lagRad(preset){
+    const id = nesteId++;
+    const bil = { id, ...preset };
+    koeretoy.push(bil);
+    const rad = document.createElement('div');
+    rad.className = 'vehicle-row';
+    rad.innerHTML = `
+      <input type="text" value="${preset.navn}" data-felt="navn" />
+      <input type="number" value="${preset.antall}" min="1" max="50" data-felt="antall" />
+      <div class="input-group">
+        <input type="number" value="${preset.kwh}" min="5" max="800" step="5" data-felt="kwh" />
+        <span class="unit">kWh</span>
+      </div>
+      <div class="input-group">
+        <input type="number" value="${preset.maxKw}" min="3" max="350" step="1" data-felt="maxKw" />
+        <span class="unit">kW</span>
+      </div>
+      <button data-fjern="${id}" aria-label="Fjern" class="btn-fjern">×</button>
+    `;
+    rad.dataset.id = id;
+    liste.appendChild(rad);
+    rad.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const felt = inp.dataset.felt;
+        bil[felt] = felt === 'navn' ? inp.value : Number(inp.value);
+        regn();
+      });
+    });
+    rad.querySelector('[data-fjern]').addEventListener('click', () => {
+      const idx = koeretoy.findIndex(k => k.id === id);
+      if(idx >= 0) koeretoy.splice(idx, 1);
+      rad.remove();
+      regn();
+    });
+  }
+
+  function lesVindu(){
+    const start = Number(document.getElementById('start').value);
+    const slutt = Number(document.getElementById('slutt').value);
+    const startReal = start;
+    const sluttReal = slutt < start ? slutt + 24 : slutt + 24;
+    const timer = sluttReal - startReal;
+    return { startReal, sluttReal, timer };
+  }
+
+  function fmtTid(t){
+    const h = ((t % 24) + 24) % 24;
+    return String(Math.floor(h)).padStart(2,'0') + ':00';
+  }
+
+  let chart;
+
+  function regn(){
+    const { startReal, sluttReal, timer } = lesVindu();
+    document.getElementById('start-out').textContent = fmtTid(startReal);
+    document.getElementById('slutt-out').textContent = fmtTid(sluttReal);
+    document.getElementById('vindu-out').textContent = timer + ' timer å lade på';
+
+    const effektVinter = Number(document.getElementById('effekt-vinter').value);
+    const effektSommer = Number(document.getElementById('effekt-sommer').value);
+    const spotPris = Number(document.getElementById('spot').value) / 100;
+    document.getElementById('effekt-vinter-out').textContent = effektVinter;
+    document.getElementById('effekt-sommer-out').textContent = effektSommer;
+    document.getElementById('spot-out').textContent = Math.round(spotPris * 100);
+
+    let totalKwh = 0;
+    let dumPeak = 0;
+    koeretoy.forEach(b => {
+      totalKwh += b.antall * b.kwh;
+      dumPeak += b.antall * b.maxKw;
+    });
+
+    const smartPeakIdeell = timer > 0 ? totalKwh / timer : dumPeak;
+    const smartPeak = Math.min(smartPeakIdeell, dumPeak);
+    const reduksjonPeak = dumPeak - smartPeak;
+
+    const smartSpotPris = spotPris * 0.85;
+    const dumEnergi = totalKwh * spotPris;
+    const smartEnergi = totalKwh * smartSpotPris;
+    const spotBespDag = dumEnergi - smartEnergi;
+
+    const effektBespVinter = reduksjonPeak * effektVinter * 6;
+    const effektBespSommer = reduksjonPeak * effektSommer * 6;
+    const effektBespAar = effektBespVinter + effektBespSommer;
+
+    const snittEffekt = (effektVinter + effektSommer) / 2;
+    const dumEffektDag = dumPeak * snittEffekt / 30;
+    const smartEffektDag = smartPeak * snittEffekt / 30;
+    const dumKost = dumEnergi + dumEffektDag;
+    const smartKost = smartEnergi + smartEffektDag;
+
+    document.getElementById('dum-peak').textContent = Math.round(dumPeak) + ' kW';
+    document.getElementById('smart-peak').textContent = Math.round(smartPeak) + ' kW';
+    document.getElementById('dum-kost').textContent = Math.round(dumKost).toLocaleString('no-NO') + ' kr/natt';
+    document.getElementById('smart-kost').textContent = Math.round(smartKost).toLocaleString('no-NO') + ' kr/natt';
+
+    const spotBespAar = spotBespDag * 365;
+    const totalBespAar = effektBespAar + spotBespAar;
+
+    document.getElementById('besparelse').textContent = Math.round(totalBespAar).toLocaleString('no-NO') + ' kr/år';
+    document.getElementById('besparelse-detalj').textContent =
+      'Effekt ' + Math.round(effektBespAar).toLocaleString('no-NO') + ' kr · spot ' + Math.round(spotBespAar).toLocaleString('no-NO') + ' kr';
+
+    const vinterTotal = effektBespVinter + spotBespDag * 182;
+    const sommerTotal = effektBespSommer + spotBespDag * 183;
+    document.getElementById('vinter-besp').textContent = Math.round(vinterTotal).toLocaleString('no-NO') + ' kr';
+    document.getElementById('sommer-besp').textContent = Math.round(sommerTotal).toLocaleString('no-NO') + ' kr';
+
+    tegnGraf(startReal, sluttReal, timer, totalKwh, dumPeak, smartPeak);
+  }
+
+  function tegnGraf(startReal, sluttReal, timer, totalKwh, dumPeak, smartPeak){
+    const timer24 = [];
+    const dumProfil = [];
+    const smartProfil = [];
+    for(let t = startReal; t <= sluttReal; t++){
+      timer24.push(fmtTid(t));
+      const dumTimerNoedvendig = dumPeak > 0 ? totalKwh / dumPeak : 0;
+      const tFraStart = t - startReal;
+      dumProfil.push(tFraStart < dumTimerNoedvendig ? dumPeak : 0);
+      smartProfil.push(tFraStart < timer ? smartPeak : 0);
+    }
+
+    const ctx = document.getElementById('chart');
+    if(chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: timer24,
+        datasets: [
+          {
+            label: 'Uten styring',
+            data: dumProfil,
+            borderColor: '#F76C5E',
+            backgroundColor: 'rgba(247, 108, 94, 0.15)',
+            fill: true,
+            stepped: true,
+            tension: 0,
+            borderWidth: 2,
+            pointRadius: 0
+          },
+          {
+            label: 'Smart lading',
+            data: smartProfil,
+            borderColor: '#1A1A1A',
+            backgroundColor: 'rgba(253, 245, 172, 0.6)',
+            fill: true,
+            stepped: true,
+            tension: 0,
+            borderWidth: 2,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: { size: 12, family: "'GT Era Text', Arial, sans-serif" },
+              color: '#1A1A1A',
+              boxWidth: 12,
+              padding: 12
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { font: { size: 11 }, color: '#6B6B6B' },
+            grid: { color: '#F0F0F0' },
+            border: { display: false }
+          },
+          x: {
+            ticks: { font: { size: 11 }, color: '#6B6B6B', maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
+            grid: { display: false },
+            border: { color: '#E8E8E8' }
+          }
+        }
+      }
+    });
+  }
+
+  startPresets.forEach(lagRad);
+
+  presetSel.addEventListener('change', () => {
+    const idx = Number(presetSel.value);
+    if(!isNaN(idx) && bibliotek[idx]){
+      const b = bibliotek[idx];
+      lagRad({ navn: b.navn.split(' (')[0], antall: 1, kwh: b.kwh, maxKw: b.maxKw });
+      regn();
+    }
+    presetSel.value = '';
+  });
+
+  document.getElementById('legg-til-tom').addEventListener('click', () => {
+    lagRad({ navn: 'Eget kjøretøy', antall: 1, kwh: 50, maxKw: 22 });
+    regn();
+  });
+
+  ['start','slutt','effekt-vinter','effekt-sommer','spot'].forEach(id => {
+    document.getElementById(id).addEventListener('input', regn);
+  });
+
+  regn();
+})();
+
+// Kontaktskjema — bytt ut endpoint med deres Formspree/HubSpot/eget endepunkt
+function sendKontakt(e){
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+
+  // ENDRE DENNE: erstatt med deres egen mottakers-URL
+  // Eksempel for Formspree: 'https://formspree.io/f/DERES_ID'
+  const ENDPOINT = 'REPLACE_WITH_YOUR_ENDPOINT';
+
+  if (ENDPOINT === 'REPLACE_WITH_YOUR_ENDPOINT') {
+    // Fallback: mailto-lenke hvis dere ikke har satt opp endepunkt enda
+    const navn = data.get('navn') || '';
+    const bedrift = data.get('bedrift') || '';
+    const epost = data.get('epost') || '';
+    const telefon = data.get('telefon') || '';
+    const kommentar = data.get('kommentar') || '';
+    const body = encodeURIComponent(
+      'Navn: ' + navn + '\n' +
+      'Bedrift: ' + bedrift + '\n' +
+      'E-post: ' + epost + '\n' +
+      'Telefon: ' + telefon + '\n\n' +
+      'Kommentar:\n' + kommentar
+    );
+    window.location.href = 'mailto:hei@noova.no?subject=' + encodeURIComponent('Forespørsel om smart lading') + '&body=' + body;
+    return false;
+  }
+
+  fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Accept': 'application/json' },
+    body: data
+  }).then(res => {
+    if (res.ok) {
+      form.style.display = 'none';
+      document.getElementById('kontakt-takk').style.display = 'block';
+    } else {
+      alert('Noe gikk galt. Send oss heller en e-post til hei@noova.no.');
+    }
+  }).catch(() => {
+    alert('Noe gikk galt. Send oss heller en e-post til hei@noova.no.');
+  });
+  return false;
+}
+</script>
+
+</body>
+</html>
