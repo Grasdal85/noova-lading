@@ -288,8 +288,9 @@
 <div class="card">
 <p class="label">Strøm og nettleie</p>
 <div class="modus-toggle">
-<button type="button" class="modus-btn aktiv" data-modus="begge">Spot + effektledd</button>
+<button type="button" class="modus-btn aktiv" data-modus="begge">Spot + effekt</button>
 <button type="button" class="modus-btn" data-modus="spot">Kun spot</button>
+<button type="button" class="modus-btn" data-modus="fleks">Med fleksibilitet</button>
 </div>
 <div class="effekt-sliders" id="effekt-sliders">
 <div class="row">
@@ -302,6 +303,19 @@
 <input type="range" min="10" max="150" value="50" step="5" id="effekt-sommer" />
 <span id="effekt-sommer-out">50</span>
 </div>
+</div>
+<div id="fleks-params" style="display: none;">
+<div class="row">
+<label>Fleks kW</label>
+<input type="range" min="0" max="1000" value="100" step="10" id="fleks-kw" />
+<span id="fleks-kw-out">100</span>
+</div>
+<div class="row">
+<label>NOK/MW/t</label>
+<input type="range" min="50" max="1000" value="200" step="10" id="fleks-pris" />
+<span id="fleks-pris-out">200</span>
+</div>
+<p class="hint" id="fleks-hint" style="margin: 2px 0 6px;"></p>
 </div>
 <p class="hint" style="margin-top: 4px;" id="modus-hint">Spotpriser hentes fra faktiske timepriser i NO2 gjennom 2025 (snitt 77 øre/kWh).</p>
 </div>
@@ -403,7 +417,7 @@
 </div>
 
 <p class="footnote">
-<sup>*</sup> Du sparer på effektleddet bare hvis du holder samme tak resten av måneden. Én time med høyere uttak — dagdrift, hurtiglading, eller flere maskiner som starter samtidig — setter ny månedsmaks og spiser av gevinsten. Spotgevinsten er regnet ut fra faktiske timepriser i NO2 gjennom hele 2025, for nettopp det ladevinduet du har valgt: den sammenligner å lade fra vinduet starter mot å velge de billigste timene innenfor samme vindu. Velger du et smalt vindu som allerede ligger i de billige nattetimene (f.eks. 23–03), er det lite igjen å hente på spot — da ligger gevinsten i effektleddet. Tall for kW og kWh er nettokapasitet, og lading skjer typisk mellom 40% og 100%.
+<sup>*</sup> Du sparer på effektleddet bare hvis du holder samme tak resten av måneden. Én time med høyere uttak — dagdrift, hurtiglading, eller flere maskiner som starter samtidig — setter ny månedsmaks og spiser av gevinsten. Spotgevinsten er regnet ut fra faktiske timepriser i NO2 gjennom hele 2025, for nettopp det ladevinduet du har valgt: den sammenligner å lade fra vinduet starter mot å velge de billigste timene innenfor samme vindu. Velger du et smalt vindu som allerede ligger i de billige nattetimene (f.eks. 23–03), er det lite igjen å hente på spot — da ligger gevinsten i effektleddet. Fleksibilitetsinntekt forutsetter prekvalifisering hos Statnett (typisk via en aggregator), at budet aktiveres/reserveres i timene flåten lader, og at minstevolum for markedet nås — prisene varierer mye mellom marked (FCR, aFRR, mFRR) og over året. Tall for kW og kWh er nettokapasitet, og lading skjer typisk mellom 40% og 100%.
 </p>
 
 </div>
@@ -661,14 +675,28 @@ Noova Energy Systems · Løkkeveien 107, 4007 Stavanger ·
     const sim = simuler();
     const { totalKwh, dumPeak, dumSpotAvg } = sim;
     const kunSpot = (modus === 'spot');
+    const medFleks = (modus === 'fleks');
     document.getElementById('tom-hint').style.display = koeretoy.length ? 'none' : 'block';
 
-    // Velg smart-strategi: jevn (peak-bevisst) i 'begge', billigst-mulig i 'kun spot'
+    // Velg smart-strategi: jevn (peak-bevisst) i 'begge'/'fleks', billigst-mulig i 'kun spot'
     const smartPower = kunSpot ? sim.smartCheap : sim.smartEven;
     const smartPeak = kunSpot ? sim.smartCheapPeak : sim.smartEvenPeak;
     let smartSpotAvg = kunSpot ? sim.smartCheapSpotAvg : sim.smartEvenSpotAvg;
     smartSpotAvg = Math.min(smartSpotAvg, dumSpotAvg); // aldri dårligere enn uten styring
     const reduksjonPeak = dumPeak - smartPeak;
+
+    // Fleksibilitet: inntekt fra reservemarkedene i timene flåten lader
+    const fleksKw = Number(document.getElementById('fleks-kw').value);
+    const fleksPris = Number(document.getElementById('fleks-pris').value);
+    document.getElementById('fleks-kw-out').textContent = fleksKw;
+    document.getElementById('fleks-pris-out').textContent = fleksPris;
+    const aktiveTimer = sim.smartEven.filter(p => p > 0.01).length;
+    const fleksInntektAar = medFleks ? (fleksKw / 1000) * fleksPris * aktiveTimer * 365 : 0;
+    const fleksDag = fleksInntektAar / 365;
+    const smartSnittLast = aktiveTimer > 0 ? Math.round(totalKwh / aktiveTimer) : 0;
+    document.getElementById('fleks-hint').textContent = koeretoy.length
+      ? ('Flåtens jevne ladelast er nå ca ' + smartSnittLast + ' kW over ' + aktiveTimer + ' timer — et naturlig utgangspunkt for tilgjengelig fleks.')
+      : 'Legg til kjøretøy for å se flåtens ladelast.';
 
     // Bruk de faktiske NO2 2025-prisene direkte
     const dumEnergi = totalKwh * dumSpotAvg;
@@ -692,16 +720,22 @@ Noova Energy Systems · Løkkeveien 107, 4007 Stavanger ·
     document.getElementById('smart-kost').textContent = Math.round(smartKost).toLocaleString('no-NO') + ' kr/natt';
 
     const spotBespAar = spotBespDag * 365;
-    const totalBespAar = effektBespAar + spotBespAar;
+    const totalBespAar = effektBespAar + spotBespAar + fleksInntektAar;
 
     document.getElementById('besparelse').textContent = Math.round(totalBespAar).toLocaleString('no-NO') + ' kr/år';
     const spotBespPct = dumSpotAvg > 0 ? Math.round((1 - smartSpotAvg/dumSpotAvg)*100) : 0;
-    document.getElementById('besparelse-detalj').textContent = kunSpot
-      ? ('Kun spot · ' + spotBespPct + '% lavere snittpris')
-      : ('Effekt ' + Math.round(effektBespAar).toLocaleString('no-NO') + ' kr · spot ' + Math.round(spotBespAar).toLocaleString('no-NO') + ' kr (' + spotBespPct + '%)');
+    let detalj;
+    if(kunSpot){
+      detalj = 'Kun spot · ' + spotBespPct + '% lavere snittpris';
+    } else if(medFleks){
+      detalj = 'Effekt ' + Math.round(effektBespAar).toLocaleString('no-NO') + ' kr · spot ' + Math.round(spotBespAar).toLocaleString('no-NO') + ' kr · fleks ' + Math.round(fleksInntektAar).toLocaleString('no-NO') + ' kr';
+    } else {
+      detalj = 'Effekt ' + Math.round(effektBespAar).toLocaleString('no-NO') + ' kr · spot ' + Math.round(spotBespAar).toLocaleString('no-NO') + ' kr (' + spotBespPct + '%)';
+    }
+    document.getElementById('besparelse-detalj').textContent = detalj;
 
-    const vinterTotal = effektBespVinter + spotBespDag * 182;
-    const sommerTotal = effektBespSommer + spotBespDag * 183;
+    const vinterTotal = effektBespVinter + (spotBespDag + fleksDag) * 182;
+    const sommerTotal = effektBespSommer + (spotBespDag + fleksDag) * 183;
     document.getElementById('vinter-besp').textContent = Math.round(vinterTotal).toLocaleString('no-NO') + ' kr';
     document.getElementById('sommer-besp').textContent = Math.round(sommerTotal).toLocaleString('no-NO') + ' kr';
 
@@ -834,14 +868,18 @@ Noova Energy Systems · Løkkeveien 107, 4007 Stavanger ·
       modus = btn.dataset.modus;
       document.querySelectorAll('.modus-btn').forEach(b => b.classList.toggle('aktiv', b === btn));
       document.getElementById('effekt-sliders').classList.toggle('av', modus === 'spot');
-      document.getElementById('modus-hint').textContent = modus === 'spot'
-        ? 'Regner kun på spotgevinst. Effektleddet håndteres et annet sted.'
-        : 'Snitt NO2 2025 var 77 øre. Spotgevinsten regnes ut fra faktiske timepriser.';
+      document.getElementById('fleks-params').style.display = modus === 'fleks' ? 'block' : 'none';
+      const hints = {
+        begge: 'Spotpriser hentes fra faktiske timepriser i NO2 gjennom 2025 (snitt 77 øre/kWh).',
+        spot: 'Regner kun på spotgevinst. Effektleddet håndteres et annet sted.',
+        fleks: 'Som spot + effekt, pluss inntekt fra å by ladefleksibiliteten inn i Statnetts reservemarkeder.'
+      };
+      document.getElementById('modus-hint').textContent = hints[modus];
       regn();
     });
   });
 
-  ['start','slutt','effekt-vinter','effekt-sommer'].forEach(id => {
+  ['start','slutt','effekt-vinter','effekt-sommer','fleks-kw','fleks-pris'].forEach(id => {
     document.getElementById(id).addEventListener('input', regn);
   });
 
